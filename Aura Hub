@@ -1,0 +1,319 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+
+-- BLUR
+local blur = Instance.new("BlurEffect", Lighting)
+blur.Size = 0
+
+-- GUI
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+
+-- BOTÃO
+local toggle = Instance.new("TextButton", gui)
+toggle.Size = UDim2.new(0,55,0,55)
+toggle.Position = UDim2.new(0,20,0.5,-30)
+toggle.Text = "×"
+toggle.Font = Enum.Font.Gotham
+toggle.TextSize = 24
+toggle.BackgroundColor3 = Color3.fromRGB(30,30,30)
+toggle.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(1,0)
+
+-- DRAG BOTÃO
+local draggingToggle, dragStart, startPos
+toggle.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.Touch then
+		draggingToggle = true
+		dragStart = i.Position
+		startPos = toggle.Position
+	end
+end)
+
+UIS.InputChanged:Connect(function(i)
+	if draggingToggle and i.UserInputType == Enum.UserInputType.Touch then
+		local delta = i.Position - dragStart
+		toggle.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UIS.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.Touch then
+		draggingToggle = false
+	end
+end)
+
+-- MAIN
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0,220,0,320)
+main.Position = UDim2.new(0.5,-110,0.5,-160)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.BackgroundTransparency = 0.25
+main.Visible = false
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,16)
+
+-- TOP BAR
+local top = Instance.new("Frame", main)
+top.Size = UDim2.new(1,0,0,30)
+top.BackgroundTransparency = 1
+
+local title = Instance.new("TextLabel", top)
+title.Size = UDim2.new(1,0,1,0)
+title.Text = "Aura Hub"
+title.Font = Enum.Font.Gotham
+title.TextSize = 14
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+
+-- DRAG HUB
+local dragging = false
+local dragStart2, startPos2
+
+top.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart2 = input.Position
+		startPos2 = main.Position
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.Touch then
+		local delta = input.Position - dragStart2
+		main.Position = UDim2.new(
+			startPos2.X.Scale,
+			startPos2.X.Offset + delta.X,
+			startPos2.Y.Scale,
+			startPos2.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- SCROLL
+local scroll = Instance.new("ScrollingFrame", main)
+scroll.Position = UDim2.new(0,0,0,30)
+scroll.Size = UDim2.new(1,0,1,-30)
+scroll.CanvasSize = UDim2.new(0,0,0,500)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 4
+
+-- BOTÕES
+local function makeBtn(text, y)
+	local b = Instance.new("TextButton", scroll)
+	b.Size = UDim2.new(1,-10,0,30)
+	b.Position = UDim2.new(0,5,0,y)
+	b.Text = text
+	b.Font = Enum.Font.Gotham
+	b.TextSize = 14
+	b.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	b.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", b)
+	return b
+end
+
+local spectate = makeBtn("Spectate Selected",5)
+local stopSpectate = makeBtn("Stop Spectate",40)
+local aimBtn = makeBtn("Aimbot",75)
+local stopAim = makeBtn("Stop Aim",110)
+local speed = makeBtn("Speed",145)
+local espBtn = makeBtn("ESP",180)
+local espPcBtn = makeBtn("ESP PC",215)
+
+-- VAR
+local selectedPlayer = nil
+local aim = false
+local espEnabled = false
+local espPcEnabled = false
+
+-- LISTA
+local playerList = Instance.new("ScrollingFrame", scroll)
+playerList.Size = UDim2.new(1,-10,0,150)
+playerList.Position = UDim2.new(0,5,0,260)
+playerList.BackgroundTransparency = 1
+
+local function refreshPlayers()
+	playerList:ClearAllChildren()
+	local y = 0
+
+	for _,p in pairs(Players:GetPlayers()) do
+		if p ~= player then
+			local b = Instance.new("TextButton", playerList)
+			b.Size = UDim2.new(1,0,0,25)
+			b.Position = UDim2.new(0,0,0,y)
+			b.Text = p.Name
+			b.Font = Enum.Font.Gotham
+			b.TextSize = 13
+			b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+			b.TextColor3 = Color3.new(1,1,1)
+			Instance.new("UICorner", b)
+
+			b.MouseButton1Click:Connect(function()
+				selectedPlayer = p
+			end)
+
+			y += 30
+		end
+	end
+
+	playerList.CanvasSize = UDim2.new(0,0,0,y)
+end
+
+refreshPlayers()
+Players.PlayerAdded:Connect(refreshPlayers)
+Players.PlayerRemoving:Connect(refreshPlayers)
+
+-- SPECTATE
+spectate.MouseButton1Click:Connect(function()
+	if selectedPlayer and selectedPlayer.Character then
+		local hum = selectedPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			camera.CameraSubject = hum
+		end
+	end
+end)
+
+stopSpectate.MouseButton1Click:Connect(function()
+	if player.Character then
+		camera.CameraSubject = player.Character:FindFirstChildOfClass("Humanoid")
+	end
+end)
+
+-- AIMBOT
+aimBtn.MouseButton1Click:Connect(function() aim = true end)
+stopAim.MouseButton1Click:Connect(function() aim = false end)
+
+RunService.RenderStepped:Connect(function()
+	if aim then
+		local closest, dist = nil, math.huge
+		for _,p in pairs(Players:GetPlayers()) do
+			if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+				local pos, vis = camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+				if vis then
+					local mag = (Vector2.new(pos.X,pos.Y) - camera.ViewportSize/2).Magnitude
+					if mag < dist then
+						dist = mag
+						closest = p.Character.HumanoidRootPart
+					end
+				end
+			end
+		end
+		if closest then
+			camera.CFrame = camera.CFrame:Lerp(
+				CFrame.new(camera.CFrame.Position, closest.Position),
+				0.25
+			)
+		end
+	end
+end)
+
+-- SPEED
+speed.MouseButton1Click:Connect(function()
+	local hum = player.Character and player.Character:FindFirstChild("Humanoid")
+	if hum then
+		hum.WalkSpeed = (hum.WalkSpeed == 16) and 32 or 16
+	end
+end)
+
+-- ESP PLAYER (AGORA FUNCIONANDO)
+local function updateESP()
+	for _,p in pairs(Players:GetPlayers()) do
+		if p ~= player then
+			local char = p.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				local hl = char:FindFirstChild("AuraESP")
+
+				if espEnabled then
+					if not hl then
+						local h = Instance.new("Highlight")
+						h.Name = "AuraESP"
+						h.FillColor = Color3.fromRGB(0,255,0)
+						h.OutlineColor = Color3.fromRGB(255,255,255)
+						h.Parent = char
+					end
+				else
+					if hl then hl:Destroy() end
+				end
+			end
+		end
+	end
+end
+
+espBtn.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	updateESP()
+end)
+
+Players.PlayerAdded:Connect(function(p)
+	p.CharacterAdded:Connect(function()
+		wait(1)
+		updateESP()
+	end)
+end)
+
+-- ESP PC
+local function updatePcESP()
+	for _,obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") then
+			local hasScreen = obj:FindFirstChildWhichIsA("SurfaceGui") or obj:FindFirstChild("Screen")
+			local hasBase = obj:FindFirstChildWhichIsA("BasePart")
+
+			if hasScreen and hasBase then
+				if espPcEnabled then
+					if not obj:FindFirstChild("AuraPC") then
+						local h = Instance.new("Highlight")
+						h.Name = "AuraPC"
+						h.FillColor = Color3.fromRGB(0,150,255)
+						h.Parent = obj
+					end
+				else
+					local old = obj:FindFirstChild("AuraPC")
+					if old then old:Destroy() end
+				end
+			end
+		end
+	end
+end
+
+espPcBtn.MouseButton1Click:Connect(function()
+	espPcEnabled = not espPcEnabled
+	updatePcESP()
+end)
+
+-- ANIMAÇÃO
+toggle.MouseButton1Click:Connect(function()
+	if not main.Visible then
+		main.Visible = true
+		main.Size = UDim2.new(0,0,0,0)
+
+		TweenService:Create(main, TweenInfo.new(0.3), {
+			Size = UDim2.new(0,220,0,320)
+		}):Play()
+
+		TweenService:Create(blur, TweenInfo.new(0.3), {Size = 12}):Play()
+	else
+		local t1 = TweenService:Create(main, TweenInfo.new(0.25), {
+			Size = UDim2.new(0,0,0,0)
+		})
+		local t2 = TweenService:Create(blur, TweenInfo.new(0.25), {Size = 0})
+
+		t1:Play()
+		t2:Play()
+		t1.Completed:Wait()
+		main.Visible = false
+	end
+end)
